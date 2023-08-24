@@ -25,6 +25,9 @@ with st.sidebar:
   """)
   add_vertical_space(5)
   st.write('Made by [Azamat](https://github.com/Azamat0315277)')
+# Create session state for chat history
+if "chat_history" not in st.session_state:
+   st.session_state['chat_history'] = []
 
 def main():
   st.header('Chat with PDF 💬')
@@ -32,7 +35,7 @@ def main():
 
   # upload a PDF file
   pdf = st.file_uploader('Upload your PDF', type='pdf')
-  st.write(pdf.name)
+  #st.write(pdf.name)
 
   if pdf is not None:
     pdf_reader = PdfReader(pdf)
@@ -57,16 +60,16 @@ def main():
     store_name = pdf.name[:-4]
 
     # Check if file exists
-    if os.path.exists(f"chatpdf/{store_name}.pkl"):
-        with open(f"chatpdf/{store_name}.pkl", 'rb') as f:
+    if os.path.exists(f"{store_name}.pkl"):
+        with open(f"{store_name}.pkl", 'rb') as f:
             vectorstore = pickle.load(f)
         #st.write('Embeddings Loaded from the disk')
     else:
         embeddings = OpenAIEmbeddings()
         vectorstore = FAISS.from_texts(chunks, embedding=embeddings)
-        with open(f"chatpdf/{store_name}.pkl", 'wb') as f:
+        with open(f"{store_name}.pkl", 'wb') as f:
             pickle.dump(vectorstore, f)
-        #st.write('Embeddings Computing Comleted')
+        st.write('Embeddings Computing Comleted')
 
     # Accept user question/query
     query = st.text_input('Ask questions about your PDF file:')
@@ -78,13 +81,18 @@ def main():
         chain = load_qa_chain(llm=llm, chain_type='stuff')
         #check pricing of response by `get_openai_callback`
         with get_openai_callback() as cb:
-           
             response = chain.run(input_documents=docs, question=query)
             print(cb)
+        # Append query and response to chat history
+        st.session_state['chat_history'].append((query, response))
+        
         st.write(response)
-
     
-
-
+    # Display chat history
+    st.markdown("## Chat History")
+    for chat in st.session_state['chat_history']:
+        st.markdown(f'**You:** {chat[0]}')
+        st.markdown(f'**Assistant:** {chat[1]}')
+       
 if __name__ == '__main__':
   main()
